@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const patients = await prisma.user.findMany({
+    const customers = await prisma.user.findMany({
       where: {
-        role: 'PACIENTE', 
+        role: 'CLIENTE',
         
         name: {
           contains: search,
@@ -24,9 +24,9 @@ export async function GET(req: NextRequest) {
       take: 10,
     });
 
-    return NextResponse.json(patients);
+    return NextResponse.json(customers);
   } catch (error) {
-    console.error('Erro ao buscar pacientes:', error);
-    return NextResponse.json({ error: 'Erro interno ao buscar pacientes.' }, { status: 500 });
+    console.error('Erro ao buscar clientes:', error);
+    return NextResponse.json({ error: 'Erro interno ao buscar clientes.' }, { status: 500 });
   }
 }

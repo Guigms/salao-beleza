@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useState, FormEvent } from 'react';
 import { toast } from 'sonner';
@@ -99,14 +98,11 @@ export default function ForgotPasswordPage() {
         </div>
       </div>
 
-      {/* Coluna da direita com a imagem*/}
-      <div className="relative hidden flex-1 lg:block">
-        <Image
-          src="/logomasso.png"
-          alt="Logo da Jessica Vale Massoterapia"
-          fill
-          style={{ objectFit: 'cover' }}
-        />
+      <div className="hidden flex-1 items-center justify-center bg-[#bcbcbc] lg:flex">
+        <div className="text-center text-stone-900">
+          <p className="text-4xl font-bold">Salão Beleza</p>
+          <p className="mt-3 text-lg">Cuidado e beleza em cada detalhe.</p>
+        </div>
       </div>
     </main>
   );

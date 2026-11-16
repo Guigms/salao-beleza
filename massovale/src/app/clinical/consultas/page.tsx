@@ -13,7 +13,7 @@ type UserProfile = {
   name: string;
 };
 
-type Patient = {
+type Customer = {
   id: number;
   name: string;
 };
@@ -23,7 +23,7 @@ type ReportAppointment = {
   date: string;
   service: string | null;
   notes: string | null;
-  patient: {
+  customer: {
     name: string;
   };
 };
@@ -40,11 +40,11 @@ export default function ReportsPage() {
   // --- Estados dos Filtros ---
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [patientQuery, setPatientQuery] = useState('');
-  const [patientResults, setPatientResults] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-  const patientDebounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const [customerQuery, setCustomerQuery] = useState('');
+  const [customerResults, setCustomerResults] = useState<Customer[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const customerDebounceTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // --- Estado para acionar a busca ---
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -60,39 +60,39 @@ export default function ReportsPage() {
 
   // Busca de pacientes para o filtro
   useEffect(() => {
-    if (patientQuery.length < 2) {
-      setPatientResults([]);
+    if (customerQuery.length < 2) {
+      setCustomerResults([]);
       return;
     }
-    if (patientDebounceTimeout.current) clearTimeout(patientDebounceTimeout.current);
-    patientDebounceTimeout.current = setTimeout(async () => {
+    if (customerDebounceTimeout.current) clearTimeout(customerDebounceTimeout.current);
+    customerDebounceTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/patient?search=${encodeURIComponent(patientQuery)}`);
-        if (res.ok) setPatientResults(await res.json());
+        const res = await fetch(`/api/patient?search=${encodeURIComponent(customerQuery)}`);
+        if (res.ok) setCustomerResults(await res.json());
       } catch {
-        toast.error("Erro ao buscar pacientes");
+        toast.error("Erro ao buscar clientes");
       }
     }, 400);
-  }, [patientQuery]);
+  }, [customerQuery]);
 
   // Função para aplicar os filtros e acionar o SWR
   const handleGenerateReport = () => {
     if (!user) return;
-    const newFilters: Record<string, string> = { clinicoId: String(user.id) };
+    const newFilters: Record<string, string> = { professionalId: String(user.id) };
     if (startDate && endDate) {
       newFilters.startDate = startDate;
       newFilters.endDate = endDate;
     }
-    if (selectedPatient) {
-      newFilters.patientId = String(selectedPatient.id);
+    if (selectedCustomer) {
+      newFilters.customerId = String(selectedCustomer.id);
     }
     setFilters(newFilters);
   };
   
   // Limpar filtro de paciente
   const clearPatientFilter = () => {
-    setSelectedPatient(null);
-    setPatientQuery('');
+    setSelectedCustomer(null);
+    setCustomerQuery('');
     // Gera o relatório novamente sem o filtro de paciente
     handleGenerateReport(); 
   };
@@ -126,14 +126,14 @@ export default function ReportsPage() {
                     <label className="block text-sm font-medium text-gray-600">Data Final</label>
                     <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1 w-full border border-gray-300 p-2 rounded-lg text-gray-700"/>
                 </div>
-                {/* Filtro Paciente */}
+                {/* Filtro Cliente */}
                 <div className="relative md:col-span-1 lg:col-span-1">
-                    <label className="block text-sm font-medium text-gray-600">Paciente (opcional)</label>
-                    <input type="text" placeholder="Digite para buscar..." value={patientQuery} onChange={e => setPatientQuery(e.target.value)} onFocus={() => setShowPatientDropdown(true)} onBlur={() => setTimeout(() => setShowPatientDropdown(false), 200)} className="mt-1 w-full border border-gray-300 p-2 rounded-lg text-black"/>
-                    {showPatientDropdown && patientResults.length > 0 && (
+                    <label className="block text-sm font-medium text-gray-600">Cliente (opcional)</label>
+                    <input type="text" placeholder="Digite para buscar..." value={customerQuery} onChange={e => setCustomerQuery(e.target.value)} onFocus={() => setShowCustomerDropdown(true)} onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 200)} className="mt-1 w-full border border-gray-300 p-2 rounded-lg text-black"/>
+                    {showCustomerDropdown && customerResults.length > 0 && (
                       <ul className="absolute z-10 bg-white border rounded w-full mt-1 max-h-48 overflow-y-auto shadow-lg">
-                        {patientResults.map(p => (
-                          <li key={p.id} onClick={() => { setSelectedPatient(p); setPatientQuery(p.name); setShowPatientDropdown(false); }} className="px-4 py-2 text-sm hover:bg-blue-100 text-black cursor-pointer">{p.name}</li>
+                        {customerResults.map(customer => (
+                          <li key={customer.id} onClick={() => { setSelectedCustomer(customer); setCustomerQuery(customer.name); setShowCustomerDropdown(false); }} className="px-4 py-2 text-sm hover:bg-blue-100 text-black cursor-pointer">{customer.name}</li>
                         ))}
                       </ul>
                     )}
@@ -141,7 +141,7 @@ export default function ReportsPage() {
                 {/* Botões */}
                 <div className="flex gap-2">
                     <button onClick={handleGenerateReport} className="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">Gerar Relatório</button>
-                    <button onClick={clearPatientFilter} title="Limpar filtro de paciente" className="bg-gray-200 text-gray-600 p-2 rounded-lg hover:bg-gray-300">X</button>
+                    <button onClick={clearPatientFilter} title="Limpar filtro de cliente" className="bg-gray-200 text-gray-600 p-2 rounded-lg hover:bg-gray-300">X</button>
                 </div>
             </div>
         </div>
@@ -154,7 +154,7 @@ export default function ReportsPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paciente</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Serviço Realizado</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Anotações</th>
                   </tr>
@@ -163,7 +163,7 @@ export default function ReportsPage() {
                   {reportData.length > 0 ? reportData.map((app: ReportAppointment) => (
                     <tr key={app.id}>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{format(new Date(app.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{app.patient.name}</td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{app.customer.name}</td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700">{app.service || 'N/A'}</td>
                       <td className="px-4 py-4 text-sm text-gray-500 max-w-xs truncate">{app.notes || 'N/A'}</td>
                     </tr>

@@ -12,8 +12,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Jessica Vale - Massoterapeuta",
-  description: "Profissional de Massoterapia Esportiva",
+  title: "Salão Beleza | Agendamentos",
+  description: "Agende serviços de beleza e acompanhe seus atendimentos.",
 };
 
 // Adicionando a tipagem para a prop 'children'

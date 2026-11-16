@@ -7,8 +7,8 @@ import { User, Appointment } from '@prisma/client';
 
 // Tipagem para os detalhes do agendamento
 type AppointmentDetails = Appointment & {
-  patient: User;
-  clinico: User;
+  customer: User;
+  professional: User;
 };
 
 // Função para enviar e-mail de CONFIRMAÇÃO de agendamento
@@ -28,17 +28,17 @@ export async function sendAppointmentConfirmationEmail(details: AppointmentDetai
   const formattedDate = format(appointmentDate, "eeee, dd 'de' MMMM 'de' yyyy", { locale: ptBR });
   const formattedTime = format(appointmentDate, 'HH:mm');
 
-  // E-mail para o Paciente
   await transporter.sendMail({
-    from: `Jessica Vale Massoterapia <${process.env.SMTP_USER}>`,
-    to: details.patient.email,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
+    to: details.customer.email,
     subject: 'Agendamento Confirmado!',
     html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-        <h2>Olá, ${details.patient.name}!</h2>
+        <h2>Olá, ${details.customer.name}!</h2>
         <p>Seu agendamento foi confirmado com sucesso.</p>
         <div style="margin: 20px 0; padding: 15px; background-color: #f2f2f2; border-radius: 8px; display: inline-block;">
-          <p><strong>Profissional:</strong> ${details.clinico.name}</p>
+          <p><strong>Profissional:</strong> ${details.professional.name}</p>
+          <p><strong>Serviço:</strong> ${details.service || 'A confirmar'}</p>
           <p><strong>Data:</strong> ${formattedDate}</p>
           <p><strong>Horário:</strong> ${formattedTime}</p>
         </div>
@@ -47,17 +47,17 @@ export async function sendAppointmentConfirmationEmail(details: AppointmentDetai
     `,
   });
 
-  // E-mail para o Clínico
   await transporter.sendMail({
-    from: `Sistema de Agenda <${process.env.SMTP_USER}>`,
-    to: details.clinico.email,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
+    to: details.professional.email,
     subject: 'Novo Agendamento Recebido!',
     html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-        <h2>Olá, ${details.clinico.name}!</h2>
+        <h2>Olá, ${details.professional.name}!</h2>
         <p>Você tem um novo agendamento.</p>
         <div style="margin: 20px 0; padding: 15px; background-color: #f2f2f2; border-radius: 8px; display: inline-block;">
-          <p><strong>Paciente:</strong> ${details.patient.name}</p>
+          <p><strong>Cliente:</strong> ${details.customer.name}</p>
+          <p><strong>Serviço:</strong> ${details.service || 'A confirmar'}</p>
           <p><strong>Data:</strong> ${formattedDate}</p>
           <p><strong>Horário:</strong> ${formattedTime}</p>
         </div>
@@ -82,29 +82,27 @@ export async function sendAppointmentCancellationEmail(details: AppointmentDetai
   const appointmentDate = new Date(details.date);
   const formattedDate = format(appointmentDate, "dd 'de' MMMM 'de' yyyy 'às' HH:mm", { locale: ptBR });
 
-  // E-mail para o Paciente
   await transporter.sendMail({
-    from: `Jessica Vale Massoterapia <${process.env.SMTP_USER}>`,
-    to: details.patient.email,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
+    to: details.customer.email,
     subject: 'Agendamento Cancelado',
     html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-        <h2>Olá, ${details.patient.name},</h2>
-        <p>Seu agendamento para o dia ${formattedDate} com <strong>${details.clinico.name}</strong> foi cancelado.</p>
+        <h2>Olá, ${details.customer.name},</h2>
+        <p>Seu agendamento para o dia ${formattedDate} com <strong>${details.professional.name}</strong> foi cancelado.</p>
         <p>Se você não solicitou o cancelamento, por favor entre em contato.</p>
       </div>
     `,
   });
 
-  // E-mail para o Clínico
   await transporter.sendMail({
-    from: `Sistema de Agenda <${process.env.SMTP_USER}>`,
-    to: details.clinico.email,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
+    to: details.professional.email,
     subject: 'Um Agendamento foi Cancelado',
     html: `
       <div style="font-family: Arial, sans-serif; text-align: center; padding: 20px;">
-        <h2>Atenção, ${details.clinico.name},</h2>
-        <p>O agendamento com <strong>${details.patient.name}</strong> para o dia ${formattedDate} foi cancelado.</p>
+        <h2>Atenção, ${details.professional.name},</h2>
+        <p>O agendamento com <strong>${details.customer.name}</strong> para o dia ${formattedDate} foi cancelado.</p>
         <p>Este horário está novamente disponível em sua agenda.</p>
       </div>
     `,
@@ -126,7 +124,7 @@ export async function sendPasswordResetEmail(user: User, token: string) {
   const resetLink = `${process.env.BASE_URL}/reset-password?token=${token}`;
 
   await transporter.sendMail({
-    from: `Jessica Vale Massoterapia <${process.env.SMTP_USER}>`,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
     to: user.email,
     subject: 'Redefinição de Senha',
     html: `

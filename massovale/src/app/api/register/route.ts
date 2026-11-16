@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       email,
       password: hashedPassword,
       contact,
-      role: 'PACIENTE',
+      role: 'CLIENTE',
       emailVerificationToken: token,
       emailVerificationExpires: expires,
     },
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   });
 
   await transporter.sendMail({
-    from: `Jessica Vale <${process.env.SMTP_USER}>`,
+    from: `Salão Beleza <${process.env.SMTP_USER}>`,
     to: email,
     subject: 'Verifique seu e-mail',
     html: `

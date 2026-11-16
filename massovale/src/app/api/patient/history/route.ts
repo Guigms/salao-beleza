@@ -16,17 +16,17 @@ export async function GET() {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const patientId = decoded.userId;
+    const customerId = decoded.userId;
 
     const appointments = await prisma.appointment.findMany({
       where: {
-        patientId: patientId,
+        customerId,
         status: {
           in: ['AGENDADO', 'CONCLUIDO']
         }
       },
       include: {
-        clinico: {
+        professional: {
           select: {
             name: true,
             avatarUrl: true,

@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Salão Beleza
 
-## Getting Started
+Sistema de agendamentos para salão de beleza, baseado em Next.js, Prisma e MySQL.
+O repositório remoto configurado é [Guigms/salao-beleza](https://github.com/Guigms/salao-beleza).
 
-First, run the development server:
+## Desenvolvimento local
 
-```bash
+```powershell
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O schema Prisma está em `prisma/schema.prisma`. Ele define clientes, profissionais,
+serviços, agendamentos, horários bloqueados e os papéis de acesso. O cadastro público
+cria contas de cliente; contas de profissional precisam ser configuradas separadamente.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Banco de dados
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+O banco de teste foi inicializado com o schema Prisma e um catálogo de serviços de
+exemplo. Para preparar outro banco, configure `DATABASE_URL` localmente (não coloque
+credenciais no código) e execute:
 
-## Learn More
+```powershell
+npx prisma validate
+npx prisma db push
+npm run db:seed
+```
 
-To learn more about Next.js, take a look at the following resources:
+`db push` altera o banco indicado por `DATABASE_URL`; confirme o ambiente antes de
+executá-lo. O seed adiciona serviços de exemplo sem substituir serviços de mesmo nome.
+Os preços e durações são ilustrativos e devem ser revisados antes de uso real.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Comandos
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `npm run dev`: inicia o servidor de desenvolvimento.
+- `npm run build`: gera o cliente Prisma e compila a aplicação.
+- `npm run lint`: executa o ESLint.
+- `npm run db:seed`: grava os serviços iniciais no banco configurado.

@@ -8,26 +8,26 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const clinicoId = searchParams.get('clinicoId');
-    const patientId = searchParams.get('patientId');
+    const professionalId = searchParams.get('professionalId');
+    const customerId = searchParams.get('customerId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    if (!clinicoId) {
+    if (!professionalId) {
       return NextResponse.json(
-        { message: 'O ID do clínico é obrigatório.' },
+        { message: 'O ID do profissional é obrigatório.' },
         { status: 400 }
       );
     }
 
     // Tipagem correta
     const whereClause: Prisma.AppointmentWhereInput = {
-      clinicoId: parseInt(clinicoId),
+      professionalId: parseInt(professionalId),
       status: AppointmentStatus.CONCLUIDO,
     };
 
-    if (patientId) {
-      whereClause.patientId = parseInt(patientId);
+    if (customerId) {
+      whereClause.customerId = parseInt(customerId);
     }
 
     if (startDate && endDate) {
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const completedAppointments = await prisma.appointment.findMany({
       where: whereClause,
       include: {
-        patient: {
+        customer: {
           select: { name: true },
         },
       },

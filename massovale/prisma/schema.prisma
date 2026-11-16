@@ -13,48 +13,62 @@ model User {
   email                    String   @unique
   password                 String
   contact                  String
-  role                     Role     @default(PACIENTE)
+  role                     Role     @default(CLIENTE)
   emailVerified            Boolean  @default(false)
   emailVerificationToken   String?
   emailVerificationExpires DateTime?
   avatarUrl                String?
-
-  passwordResetToken       String?   @unique
+  passwordResetToken       String?  @unique
   passwordResetExpiry      DateTime?
 
-  // Relacionamentos
-  appointmentsAsPaciente Appointment[] @relation("PatientAppointments")
-  appointmentsAsClinico  Appointment[] @relation("ClinicoAppointments")
-  blockedSlots           BlockedSlot[]
+  customerAppointments    Appointment[] @relation("CustomerAppointments")
+  professionalAppointments Appointment[] @relation("ProfessionalAppointments")
+  blockedSlots            BlockedSlot[]
+}
+
+model SalonService {
+  id              Int           @id @default(autoincrement())
+  name            String        @unique
+  description     String        @db.Text
+  price           Decimal       @db.Decimal(10, 2)
+  durationMinutes Int
+  isActive        Boolean       @default(true)
+  appointments    Appointment[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 }
 
 model BlockedSlot {
-  id        Int      @id @default(autoincrement())
-  date      DateTime
-  clinico   User     @relation(fields: [clinicoId], references: [id])
-  clinicoId Int
+  id             Int      @id @default(autoincrement())
+  date           DateTime
+  professional   User     @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalId Int
 
-  @@unique([clinicoId, date])
+  @@unique([professionalId, date])
 }
 
 model Appointment {
-  id        Int      @id @default(autoincrement())
-  date      DateTime
-  patient   User     @relation("PatientAppointments", fields: [patientId], references: [id])
-  patientId Int
-  clinico   User     @relation("ClinicoAppointments", fields: [clinicoId], references: [id])
-  clinicoId Int
+  id             Int              @id @default(autoincrement())
+  date           DateTime
+  customer       User             @relation("CustomerAppointments", fields: [customerId], references: [id], onDelete: Cascade)
+  customerId     Int
+  professional   User             @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalId Int
+  salonService   SalonService?    @relation(fields: [salonServiceId], references: [id], onDelete: SetNull)
+  salonServiceId Int?
+  service        String?
+  servicePrice   Decimal?         @db.Decimal(10, 2)
+  durationMinutes Int?
+  status         AppointmentStatus @default(AGENDADO)
+  notes          String?          @db.Text
 
-  // --- ATUALIZAÇÕES AQUI ---
-  status    AppointmentStatus @default(AGENDADO)
-  service   String?
-  notes     String?           @db.Text
-  @@unique([clinicoId, date])
+  @@unique([professionalId, date])
 }
 
 enum Role {
-  PACIENTE
-  CLINICO
+  CLIENTE
+  PROFISSIONAL
+  ADMIN
 }
 
 enum AppointmentStatus {

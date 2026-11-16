@@ -20,14 +20,14 @@ export async function GET() {
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: number };
-    const patientId = decoded.userId;
+    const customerId = decoded.userId;
 
     const startOfToday = startOfDay(new Date());
 
 
     const appointments = await prisma.appointment.findMany({
       where: {
-        patientId: patientId,
+        customerId,
 
         date: {
           gte: startOfToday,
@@ -36,7 +36,7 @@ export async function GET() {
         status: 'AGENDADO',
       },
       include: {
-        clinico: {
+        professional: {
           select: {
             name: true,
           },

@@ -17,9 +17,9 @@ export async function POST(req: NextRequest) {
         id: Number(appointmentId),
       },
       data: {
-        service: service, // Salva o serviço realizado
-        notes: notes,     // Salva as anotações
-        status: 'CONCLUIDO', // Muda o status para CONCLUIDO
+        service,
+        notes,
+        status: 'CONCLUIDO',
       },
     });
 

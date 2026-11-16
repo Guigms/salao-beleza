@@ -62,9 +62,9 @@ export default function LoginForm() {
       setMessage('Login realizado com sucesso!');
       setType('success');
 
-      if (data.user.role === 'PACIENTE') {
+      if (data.user.role === 'CLIENTE') {
         router.push('/costumer/dashboard');
-      } else if (data.user.role === 'CLINICO') {
+      } else if (data.user.role === 'PROFISSIONAL' || data.user.role === 'ADMIN') {
         router.push('/clinical/dashboard');
       } else {
         router.push('/');

@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { sendAppointmentConfirmationEmail, sendAppointmentCancellationEmail } from '@/lib/email';
+import { endOfDay, startOfDay } from 'date-fns';
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   process.env.TZ = 'UTC';
-  const { date, patientId, clinicoId } = await req.json();
+  const { date, customerId, professionalId, salonServiceId } = await req.json();
 
-  if (!date || !patientId || !clinicoId) {
+  if (!date || !customerId || !professionalId) {
     return NextResponse.json({ message: 'Dados incompletos para o agendamento.' }, { status: 400 });
   }
 
@@ -21,19 +22,70 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const service = salonServiceId
+      ? await prisma.salonService.findFirst({
+          where: { id: Number(salonServiceId), isActive: true },
+        })
+      : null;
+
+    if (salonServiceId && !service) {
+      return NextResponse.json({ message: 'Serviço indisponível.' }, { status: 400 });
+    }
+
+    const requestedEnd = appointmentDate.getTime() + (service?.durationMinutes ?? 60) * 60_000;
+    const blockedSlot = await prisma.blockedSlot.findFirst({
+      where: {
+        professionalId: Number(professionalId),
+        date: {
+          gte: appointmentDate,
+          lt: new Date(requestedEnd),
+        },
+      },
+    });
+
+    if (blockedSlot) {
+      return NextResponse.json({ message: 'Este horário não está disponível.' }, { status: 409 });
+    }
+
+    const existingAppointments = await prisma.appointment.findMany({
+      where: {
+        professionalId: Number(professionalId),
+        date: { gte: startOfDay(appointmentDate), lte: endOfDay(appointmentDate) },
+        status: { not: 'CANCELADO' },
+      },
+      select: {
+        date: true,
+        durationMinutes: true,
+        salonService: { select: { durationMinutes: true } },
+      },
+    });
+
+    const overlaps = existingAppointments.some(existing => {
+      const existingEnd = existing.date.getTime() + (existing.durationMinutes ?? existing.salonService?.durationMinutes ?? 60) * 60_000;
+      return existing.date.getTime() < requestedEnd && appointmentDate.getTime() < existingEnd;
+    });
+
+    if (overlaps) {
+      return NextResponse.json({ message: 'O profissional já tem um agendamento nesse período.' }, { status: 409 });
+    }
+
     const appointment = await prisma.appointment.create({
       data: {
         date: new Date(date),
-        patientId: Number(patientId),
-        clinicoId: Number(clinicoId),
+        customerId: Number(customerId),
+        professionalId: Number(professionalId),
+        salonServiceId: service?.id,
+        service: service?.name,
+        servicePrice: service?.price,
+        durationMinutes: service?.durationMinutes,
       },
     });
 
     const appointmentDetails = await prisma.appointment.findUnique({
       where: { id: appointment.id },
       include: {
-        patient: true,
-        clinico: true,
+        customer: true,
+        professional: true,
       },
     });
 
@@ -68,8 +120,8 @@ export async function DELETE(request: Request) {
     const appointmentDetails = await prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
-        patient: true,
-        clinico: true,
+        customer: true,
+        professional: true,
       },
     });
 

@@ -14,7 +14,7 @@ type AppointmentHistory = {
   date: string;
   status: 'AGENDADO' | 'CONCLUIDO' | 'CANCELADO';
   service: string | null;
-  clinico: {
+  professional: {
     name: string;
     avatarUrl: string | null;
   };
@@ -77,13 +77,13 @@ export default function PatientHistoryPage() {
                   </div>
                    <div className="flex items-center gap-2 mt-2">
                       <Image 
-                        src={app.clinico.avatarUrl || '/default-avatar.png'} 
-                        alt={`Foto de ${app.clinico.name}`}
+                        src={app.professional.avatarUrl || '/default-avatar.png'}
+                        alt={`Foto de ${app.professional.name}`}
                         width={24}
                         height={24}
                         className="w-6 h-6 rounded-full object-cover"
                       />
-                      <p className="text-sm text-gray-500">com {app.clinico.name}</p>
+                      <p className="text-sm text-gray-500">com {app.professional.name}</p>
                    </div>
                   {app.status === 'CONCLUIDO' && (
                     <div className="mt-2 text-sm text-gray-600 bg-gray-50 p-3 rounded-md">

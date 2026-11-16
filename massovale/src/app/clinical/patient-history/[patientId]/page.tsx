@@ -23,7 +23,7 @@ type PatientHistory = {
   email: string;
   contact: string;
   avatarUrl: string | null;
-  appointmentsAsPaciente: Appointment[];
+  customerAppointments: Appointment[];
 };
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
@@ -53,7 +53,7 @@ export default function PatientHistoryPage() {
           ← Voltar ao Dashboard
         </button>
 
-        {/* Card de Informações do Paciente */}
+        {/* Card de informações do cliente */}
         {history && (
           <div className="bg-white p-6 rounded-2xl shadow mb-8 flex items-center gap-6">
             <Image
@@ -73,10 +73,10 @@ export default function PatientHistoryPage() {
 
         {/* Linha do Tempo de Atendimentos */}
         <div className="bg-white p-6 rounded-2xl shadow">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Histórico de Atendimentos</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Histórico de atendimentos</h2>
 <div className="space-y-6">
-  {history && history.appointmentsAsPaciente && history.appointmentsAsPaciente.length > 0 ? (
-    history.appointmentsAsPaciente.map(app => (
+  {history && history.customerAppointments && history.customerAppointments.length > 0 ? (
+    history.customerAppointments.map(app => (
       <div key={app.id} className={`border-l-4 pl-4 transition-all duration-300
         ${app.status === 'CONCLUIDO' ? 'border-green-500' : ''}
         ${app.status === 'AGENDADO' ? 'border-blue-500' : ''}
@@ -103,7 +103,7 @@ export default function PatientHistoryPage() {
       </div>
     ))
   ) : (
-    <p className="text-center text-gray-500 py-4">Nenhum atendimento encontrado para este paciente.</p>
+    <p className="text-center text-gray-500 py-4">Nenhum atendimento encontrado para este cliente.</p>
   )}
 </div>
         </div>

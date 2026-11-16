@@ -5,11 +5,12 @@ import { addDays, startOfDay, endOfDay, format } from 'date-fns';
 
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
-  const clinicoId = Number(searchParams.get('clinicoId'));
+  const professionalId = Number(searchParams.get('professionalId'));
+  const serviceId = Number(searchParams.get('serviceId'));
   const startDateParam = searchParams.get('startDate');
 
-  if (!clinicoId || !startDateParam) {
-    return NextResponse.json({ message: 'ID do clínico e data de início são obrigatórios.' }, { status: 400 });
+  if (!professionalId || !serviceId || !startDateParam) {
+    return NextResponse.json({ message: 'Profissional, serviço e data de início são obrigatórios.' }, { status: 400 });
   }
 
   // ✅ AQUI ESTÁ A CORREÇÃO DEFINITIVA
@@ -17,18 +18,27 @@ export async function GET(req: NextRequest) {
   const weekEnd = endOfDay(addDays(weekStart, 4));
 
   try {
-    const [bookedAppointments, blockedSlots] = await Promise.all([
+    const [bookedAppointments, blockedSlots, selectedService] = await Promise.all([
       prisma.appointment.findMany({
-        where: { clinicoId, date: { gte: weekStart, lte: weekEnd } },
-        include: { patient: { select: { name: true } } },
+        where: { professionalId, date: { gte: weekStart, lte: weekEnd } },
+        include: {
+          customer: { select: { name: true } },
+          salonService: { select: { durationMinutes: true } },
+        },
       }),
       prisma.blockedSlot.findMany({
-        where: { clinicoId, date: { gte: weekStart, lte: weekEnd } },
+        where: { professionalId, date: { gte: weekStart, lte: weekEnd } },
+      }),
+      prisma.salonService.findFirst({
+        where: { id: serviceId, isActive: true },
+        select: { durationMinutes: true },
       }),
     ]);
 
+    if (!selectedService) {
+      return NextResponse.json({ message: 'Serviço indisponível.' }, { status: 404 });
+    }
 
-    const bookedTimestamps = new Set(bookedAppointments.map(a => a.date.getTime()));
     const blockedTimestamps = new Set(blockedSlots.map(b => b.date.getTime()));
 
     const allPossibleSlots = [];
@@ -46,14 +56,24 @@ export async function GET(req: NextRequest) {
     const finalCalendar = allPossibleSlots.map(slotDate => {
       const timestamp = slotDate.getTime();
       let status: 'free' | 'booked' | 'blocked' = 'free';
-      let appointmentDetails: { patientName: string } | null = null;
+      let appointmentDetails: { customerName: string } | null = null;
 
-      if (blockedTimestamps.has(timestamp)) {
+      if ([...blockedTimestamps].some(blockedTime => blockedTime >= timestamp && blockedTime < timestamp + selectedService.durationMinutes * 60_000)) {
         status = 'blocked';
-      } else if (bookedTimestamps.has(timestamp)) {
+      } else if (bookedAppointments.some(appointment => {
+        const appointmentStart = appointment.date.getTime();
+        const appointmentEnd = appointmentStart + (appointment.durationMinutes ?? appointment.salonService?.durationMinutes ?? 60) * 60_000;
+        const requestedEnd = timestamp + selectedService.durationMinutes * 60_000;
+        return appointmentStart < requestedEnd && timestamp < appointmentEnd;
+      })) {
         status = 'booked';
-        const appointment = bookedAppointments.find(a => a.date.getTime() === timestamp);
-        appointmentDetails = { patientName: appointment?.patient.name || 'Desconhecido' };
+        const appointment = bookedAppointments.find(a => {
+          const appointmentStart = a.date.getTime();
+          const appointmentEnd = appointmentStart + (a.durationMinutes ?? a.salonService?.durationMinutes ?? 60) * 60_000;
+          const requestedEnd = timestamp + selectedService.durationMinutes * 60_000;
+          return appointmentStart < requestedEnd && timestamp < appointmentEnd;
+        });
+        appointmentDetails = { customerName: appointment?.customer.name || 'Desconhecido' };
       }
 
       return {

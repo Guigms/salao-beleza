@@ -18,10 +18,10 @@ export async function GET(
       return NextResponse.json({ message: 'ID do paciente inválido.' }, { status: 400 });
     }
 
-    const patient = await prisma.user.findUnique({
+    const customer = await prisma.user.findUnique({
       where: {
         id: patientId,
-        role: 'PACIENTE',
+        role: 'CLIENTE',
       },
       select: {
         id: true,
@@ -32,14 +32,14 @@ export async function GET(
       },
     });
 
-    if (!patient) {
-      return NextResponse.json({ message: 'Paciente não encontrado.' }, { status: 404 });
+    if (!customer) {
+      return NextResponse.json({ message: 'Cliente não encontrado.' }, { status: 404 });
     }
 
-    return NextResponse.json(patient);
+    return NextResponse.json(customer);
 
   } catch (error) {
-    console.error('Erro ao buscar detalhes do paciente:', error);
+    console.error('Erro ao buscar detalhes do cliente:', error);
     return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
   }
 }

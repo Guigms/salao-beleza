@@ -6,11 +6,11 @@ import { Prisma } from '@prisma/client';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { date, clinicoId } = body;
+    const { date, professionalId } = body;
 
-    if (!date || !clinicoId) {
+    if (!date || !professionalId) {
       return NextResponse.json(
-        { message: 'Parâmetros date e clinicoId são obrigatórios' },
+        { message: 'Parâmetros date e professionalId são obrigatórios' },
         { status: 400 }
       );
     }
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const existingAppointment = await prisma.appointment.findFirst({
       where: {
         date: slotDate,
-        clinicoId: clinicoId,
+        professionalId: Number(professionalId),
       },
     });
 
@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     const newBlockedSlot = await prisma.blockedSlot.create({
       data: {
         date: slotDate,
-        clinicoId: clinicoId,
+        professionalId: Number(professionalId),
       },
     });
 
@@ -63,21 +63,21 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const date = searchParams.get('date');
-    const clinicoIdStr = searchParams.get('clinicoId');
+    const professionalIdStr = searchParams.get('professionalId');
 
-    if (!date || !clinicoIdStr) {
+    if (!date || !professionalIdStr) {
       return NextResponse.json(
-        { message: 'Parâmetros date e clinicoId são obrigatórios na URL' },
+        { message: 'Parâmetros date e professionalId são obrigatórios na URL' },
         { status: 400 }
       );
     }
 
-    const clinicoId = parseInt(clinicoIdStr, 10);
+    const professionalId = parseInt(professionalIdStr, 10);
 
     await prisma.blockedSlot.deleteMany({
       where: {
         date: new Date(date),
-        clinicoId: clinicoId,
+        professionalId,
       },
     });
 

@@ -19,17 +19,24 @@ type UserProfile = {
 };
 
 // ✅ TIPO ATUALIZADO
-type Clinico = { 
+type Professional = {
   id: number; 
   name: string; 
-  avatarUrl?: string | null; // Adicionado avatarUrl
+  avatarUrl?: string | null;
 };
 
 type AvailabilitySlot = { date: string; status: 'free' | 'booked' | 'blocked'; };
+type SalonService = {
+  id: number;
+  name: string;
+  price: number;
+  durationMinutes: number;
+};
 type MyAppointment = {
   id: number;
   date: string;
-  clinico: { name: string; };
+  professional: { name: string; };
+  service: string | null;
 };
 
 // --- Fetcher para o SWR ---
@@ -44,7 +51,8 @@ export default function PacienteDashboard() {
   const router = useRouter();
   
   // --- Estados do Componente ---
-  const [selectedClinico, setSelectedClinico] = useState<Clinico | null>(null);
+  const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState('');
   const [currentWeek, setCurrentWeek] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -52,10 +60,13 @@ export default function PacienteDashboard() {
 
   // --- Gerenciamento de dados com SWR ---
   const { data: userData, error: userError } = useSWR<{user: UserProfile}>('/api/userJWT', fetcher);
-  const { data: clinicos, error: clinicosError } = useSWR<Clinico[]>('/api/clinicos', fetcher);
+  const { data: professionals, error: professionalsError } = useSWR<Professional[]>('/api/clinicos', fetcher);
   const { data: myAppointments, error: appointmentsError } = useSWR<MyAppointment[]>('/api/patient/myAppointment', fetcher);
+  const { data: services, error: servicesError } = useSWR<SalonService[]>('/api/services', fetcher);
   
-  const availabilityUrl = selectedClinico ? `/api/availability?clinicoId=${selectedClinico.id}&startDate=${format(currentWeek, 'yyyy-MM-dd')}` : null;
+  const availabilityUrl = selectedProfessional && selectedServiceId
+    ? `/api/availability?professionalId=${selectedProfessional.id}&serviceId=${selectedServiceId}&startDate=${format(currentWeek, 'yyyy-MM-dd')}`
+    : null;
   const { data: availability, isLoading: isLoadingAvailability } = useSWR<AvailabilitySlot[]>(availabilityUrl, fetcher);
 
   const user = userData?.user;
@@ -93,8 +104,13 @@ export default function PacienteDashboard() {
 
 
   const handleAgendar = async (slot: AvailabilitySlot) => {
-    if (!user || !selectedClinico) return;
-    if (!confirm(`Confirmar agendamento com ${selectedClinico.name} em ${format(new Date(slot.date), 'dd/MM/yyyy \'às\' HH:mm')}?`)) return;
+    if (!user || !selectedProfessional || !selectedServiceId) return;
+    const selectedService = services?.find(service => service.id === Number(selectedServiceId));
+    if (!selectedService) {
+      toast.error('Selecione um serviço disponível.');
+      return;
+    }
+    if (!confirm(`Confirmar ${selectedService.name} com ${selectedProfessional.name} em ${format(new Date(slot.date), 'dd/MM/yyyy \'às\' HH:mm')}?`)) return;
 
     if (isPast(new Date(slot.date))) {
     toast.error('Não é possível agendar em um horário que já passou.');
@@ -104,11 +120,18 @@ export default function PacienteDashboard() {
     const dateInISOString = new Date(slot.date).toISOString();
 
     try {
-      await fetch('/api/appointment', {
+      const response = await fetch('/api/appointment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: dateInISOString, patientId: user.id, clinicoId: selectedClinico.id }),
+        body: JSON.stringify({
+          date: dateInISOString,
+          customerId: user.id,
+          professionalId: selectedProfessional.id,
+          salonServiceId: selectedService.id,
+        }),
       });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Não foi possível realizar o agendamento.');
       toast.success('Agendado com sucesso!');
       mutate('/api/patient/myAppointment');
       mutate(availabilityUrl);
@@ -133,34 +156,51 @@ export default function PacienteDashboard() {
   const hours = Array.from({ length: 11 }, (_, i) => 8 + i);
   const weekDays = Array.from({ length: 5 }, (_, i) => addDays(currentWeek, i));
 
-  // --- Renderização da Tela de Seleção de Clínico ---
-  if (!selectedClinico) {
+  // --- Tela para seleção do profissional e serviço ---
+  if (!selectedProfessional) {
     return (
       <main className="bg-[#d1d1d1] min-h-screen flex flex-col items-center justify-center p-6 font-sans">
         <div className="text-center">
-            <Image src="/logover2.png" alt="Logo da Clínica" width={140} height={60} priority className="mx-auto" />
+            <p className="text-xl font-bold text-stone-900">Salão Beleza</p>
             <h1 className="text-2xl font-bold text-zinc-800 mt-4">Bem-vindo(a), {user?.name}!</h1>
-            <p className="text-zinc-600 mb-8">Selecione um profissional para ver a agenda.</p>
+            <p className="text-zinc-600 mb-8">Escolha um serviço e profissional para ver os horários.</p>
         </div>
         <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg w-full max-w-sm space-y-3">
-          {!clinicos && !clinicosError && <p className="text-center text-zinc-500">Carregando profissionais...</p>}
-          {clinicos?.map(clinico => (
-            // ✅ BOTÃO DE SELEÇÃO ATUALIZADO COM FOTO
+          <label htmlFor="salon-service" className="block text-sm font-medium text-zinc-700">Serviço</label>
+          <select
+            id="salon-service"
+            value={selectedServiceId}
+            onChange={(event) => setSelectedServiceId(event.target.value)}
+            className="w-full rounded-lg border border-gray-300 bg-white p-3 text-zinc-800"
+          >
+            <option value="">Selecione um serviço</option>
+            {services?.map(service => (
+              <option key={service.id} value={service.id}>
+                {service.name} · R$ {Number(service.price).toFixed(2)} · {service.durationMinutes} min
+              </option>
+            ))}
+          </select>
+          {servicesError && <p className="text-sm text-red-600">Não foi possível carregar os serviços.</p>}
+          {services?.length === 0 && <p className="text-sm text-amber-700">Nenhum serviço cadastrado no catálogo.</p>}
+          {!professionals && !professionalsError && <p className="text-center text-zinc-500">Carregando profissionais...</p>}
+          {professionalsError && <p className="text-center text-red-600">Não foi possível carregar os profissionais.</p>}
+          {professionals?.map(professional => (
             <button 
-                key={clinico.id} 
-                onClick={() => setSelectedClinico(clinico)} 
+                key={professional.id}
+                onClick={() => setSelectedProfessional(professional)}
+                disabled={!selectedServiceId}
                 className="w-full text-left p-4 rounded-lg bg-gray-100 hover:bg-blue-100 transition-colors flex items-center gap-4"
             >
               <Image 
-                src={clinico.avatarUrl || '/default-avatar.png'} 
-                alt={`Foto de ${clinico.name}`}
+                src={professional.avatarUrl || '/default-avatar.png'}
+                alt={`Foto de ${professional.name}`}
                 width={48}
                 height={48}
                 className="w-12 h-12 rounded-full object-cover"
               />
               <div>
-                <p className="font-bold text-zinc-800">{clinico.name}</p>
-                <p className="text-sm text-zinc-500">Massoterapeuta</p>
+                <p className="font-bold text-zinc-800">{professional.name}</p>
+                <p className="text-sm text-zinc-500">Profissional do salão</p>
               </div>
             </button>
           ))}
@@ -174,7 +214,7 @@ export default function PacienteDashboard() {
   return (
     <main className="bg-[#d1d1d1] min-h-screen p-4 md:p-6 font-sans">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
-        <Image src="/logover2.png" alt="Logo da Clínica" width={110} height={50} priority />
+        <p className="text-lg font-bold text-stone-900">Salão Beleza</p>
         <div className="flex items-center gap-4 self-end md:self-center">
           <span className="text-base md:text-lg font-medium text-zinc-700 text-right md:text-left">Bem-vindo(a),<br className="md:hidden"/> {user?.name}!</span>
            <div className="relative" ref={dropdownRef}>
@@ -208,8 +248,8 @@ export default function PacienteDashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <section className="col-span-1 xl:col-span-3 bg-white p-4 md:p-6 rounded-2xl shadow">
           <div className="flex flex-col md:flex-row justify-between md:items-center gap-2 mb-4">
-            <button onClick={() => setSelectedClinico(null)} className="text-sm text-blue-600 font-medium hover:underline self-start">← Trocar de Clínico</button>
-            <h2 className="text-lg md:text-xl font-semibold text-gray-700 order-first md:order-none">Agenda de {selectedClinico.name}</h2>
+            <button onClick={() => setSelectedProfessional(null)} className="text-sm text-blue-600 font-medium hover:underline self-start">← Trocar de profissional</button>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-700 order-first md:order-none">Agenda de {selectedProfessional.name}</h2>
             <div className="flex items-center gap-2 self-end md:self-center">
               <button onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))} className="text-sm text-blue-600 font-medium hover:underline">← Anterior</button>
               <button onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))} className="text-sm text-blue-600 font-medium hover:underline">Próxima →</button>
@@ -273,8 +313,8 @@ export default function PacienteDashboard() {
               myAppointments.map(app => (
                 <div key={app.id} className="p-3 rounded-lg bg-gray-50 border">
                   <p className="font-bold text-zinc-700">{format(new Date(app.date), "eeee, dd 'de' MMMM", { locale: ptBR })}</p>
-                  <p className="text-zinc-600">às {format(new Date(app.date), 'HH:mm')} com {app.clinico.name}</p>
-                  <button onClick={() => handleCancelar(app.id)} className="text-xs text-red-500 hover:underline mt-2">Cancelar consulta</button>
+                  <p className="text-zinc-600">às {format(new Date(app.date), 'HH:mm')} · {app.service || 'Serviço não informado'} com {app.professional.name}</p>
+                  <button onClick={() => handleCancelar(app.id)} className="text-xs text-red-500 hover:underline mt-2">Cancelar agendamento</button>
                 </div>
               ))
             ) : (

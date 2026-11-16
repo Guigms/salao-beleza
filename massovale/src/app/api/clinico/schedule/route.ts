@@ -8,8 +8,8 @@ type SlotStatus = 'booked' | 'blocked' | 'completed';
 type SlotDetails = {
   status: SlotStatus;
   appointmentId?: number;
-  patientId?: number;
-  patient?: { name:string | null };
+  customerId?: number;
+  customer?: { name:string | null };
 };
 type Schedule = {
   [key: string]: SlotDetails;
@@ -33,14 +33,14 @@ export async function GET(request: Request) {
 
     const appointments = await prisma.appointment.findMany({
       where: {
-        clinicoId: userId,
+        professionalId: userId,
         date: {
           gte: weekStart,
           lte: weekEnd,
         },
       },
       include: {
-        patient: { 
+        customer: {
           select: { name: true },
         },
       },
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
 
     const blockedSlots = await prisma.blockedSlot.findMany({
       where: {
-        clinicoId: userId,
+        professionalId: userId,
         date: {
           gte: weekStart,
           lte: weekEnd,
@@ -66,8 +66,8 @@ export async function GET(request: Request) {
       schedule[app.date.toISOString()] = {
         status: status,
         appointmentId: app.id,
-        patientId: app.patientId,
-        patient: { name: app.patient?.name ?? null },
+        customerId: app.customerId,
+        customer: { name: app.customer?.name ?? null },
       };
     });
 

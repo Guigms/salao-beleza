@@ -22,12 +22,12 @@ type SlotStatus = 'booked' | 'blocked' | 'available' | 'completed';
 type SlotDetails = {
   status: SlotStatus;
   appointmentId?: number;
-  patientId?: number; 
-  patient?: { name: string; };
+  customerId?: number;
+  customer?: { name: string; };
 };
-
 type Schedule = { [isoDate: string]: SlotDetails; };
 type Patient = { id: number; name: string; };
+type SalonService = { id: number; name: string; price: number; durationMinutes: number };
 
 // --- Fetcher genérico para o SWR ---
 const fetcher = (url: string) => fetch(url).then(res => {
@@ -44,6 +44,7 @@ export default function ClinicoDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [finalizeModalOpen, setFinalizeModalOpen] = useState(false);
   const [service, setService] = useState('');
+  const [selectedServiceId, setSelectedServiceId] = useState('');
   const [notes, setNotes] = useState('');
   
   const [currentWeek, setCurrentWeek] = useState<Date>(startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -58,6 +59,7 @@ export default function ClinicoDashboard() {
 
   const { data: userData, isLoading: isLoadingUser, error: userError } = useSWR('/api/userJWT', fetcher);
   const user: UserProfile | null = userData?.user || null;
+  const { data: services } = useSWR<SalonService[]>('/api/services', fetcher);
 
   const weekStartDate = format(currentWeek, 'yyyy-MM-dd');
   const scheduleUrl = user ? `/api/clinico/schedule?weekStartDate=${weekStartDate}&userId=${user.id}` : null;
@@ -114,8 +116,13 @@ export default function ClinicoDashboard() {
   }, [patientQuery]);
 
   const handleAgendar = async () => {
-    if (!selectedDate || !selectedPatient || !user) {
-      toast.warning('Por favor, selecione um paciente para agendar.');
+    if (!selectedDate || !selectedPatient || !user || !selectedServiceId) {
+      toast.warning('Selecione um cliente e um serviço para agendar.');
+      return;
+    }
+    const selectedService = services?.find(item => item.id === Number(selectedServiceId));
+    if (!selectedService) {
+      toast.error('Serviço indisponível. Atualize a página e tente novamente.');
       return;
     }
     try {
@@ -124,8 +131,9 @@ export default function ClinicoDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: selectedDate.toISOString(),
-          patientId: selectedPatient.id,
-          clinicoId: user.id,
+          customerId: selectedPatient.id,
+          professionalId: user.id,
+          salonServiceId: selectedService.id,
         }),
       });
       const data = await res.json();
@@ -152,10 +160,10 @@ export default function ClinicoDashboard() {
         res = await fetch('/api/clinico/blocked-slots', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: selectedDate.toISOString(), clinicoId: user.id }),
+          body: JSON.stringify({ date: selectedDate.toISOString(), professionalId: user.id }),
         });
       } else {
-        const params = new URLSearchParams({ date: selectedDate.toISOString(), clinicoId: String(user.id) });
+        const params = new URLSearchParams({ date: selectedDate.toISOString(), professionalId: String(user.id) });
         res = await fetch(`/api/clinico/blocked-slots?${params.toString()}`, { method: 'DELETE' });
       }
       const data = await res.json();
@@ -227,9 +235,9 @@ export default function ClinicoDashboard() {
   return (
     <main className="bg-[#d1d1d1] min-h-screen p-4 md:p-6 font-sans">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
-        <Image src="/logover2.png" alt="Logo da Clínica" width={110} height={50} priority/>
+        <p className="text-lg font-bold text-stone-900">Salão Beleza</p>
         <div className="flex items-center gap-4 self-end md:self-center">
-          <span className="text-base md:text-lg font-medium text-gray-700 text-right md:text-left">Bem-vinda, Dr(a).<br className="md:hidden"/> {user.name}!</span>
+          <span className="text-base md:text-lg font-medium text-gray-700 text-right md:text-left">Olá,<br className="md:hidden"/> {user.name}!</span>
           <div className="relative" ref={dropdownRef}>
             <button onClick={() => setIsDropdownOpen(p => !p)} className="rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
               <Image src={user.avatarUrl || "/default-avatar.png"} alt="avatar" width={48} height={48} className="w-10 h-10 md:w-12 md:h-12 rounded-full shadow object-cover"/>
@@ -280,16 +288,16 @@ export default function ClinicoDashboard() {
                           if (slotDetails?.status === 'completed') {
                             content = (
                                 <div className="flex flex-col items-center justify-center p-1">
-                                    <div className="bg-gray-200 text-gray-600 text-xs rounded-xl px-2 py-1 font-medium whitespace-nowrap">{slotDetails.patient?.name}</div>
-                                    <Link href={`/clinical/patient-history/${slotDetails.patientId}`} className="text-xs text-gray-500 hover:underline mt-1">(Ver Histórico)</Link>
+                                    <div className="bg-gray-200 text-gray-600 text-xs rounded-xl px-2 py-1 font-medium whitespace-nowrap">{slotDetails.customer?.name}</div>
+                                    <Link href={`/clinical/patient-history/${slotDetails.customerId}`} className="text-xs text-gray-500 hover:underline mt-1">(Ver histórico)</Link>
                                 </div>
                             );
                           } else if (slotDetails?.status === 'booked') {
                             content = (
                                 <div className="flex flex-col items-center justify-center gap-1 p-1">
-                                    <div className="bg-blue-100 text-blue-800 text-xs md:text-sm rounded-xl px-2 py-1 font-medium whitespace-nowrap">{slotDetails.patient?.name}</div>
+                                    <div className="bg-blue-100 text-blue-800 text-xs md:text-sm rounded-xl px-2 py-1 font-medium whitespace-nowrap">{slotDetails.customer?.name}</div>
                                     <div className="flex items-center flex-wrap justify-center gap-x-2 gap-y-1 mt-1">
-                                        <Link href={`/clinical/patient-history/${slotDetails.patientId}`} className="text-xs text-blue-600 hover:underline">Ver Histórico</Link>
+                                        <Link href={`/clinical/patient-history/${slotDetails.customerId}`} className="text-xs text-blue-600 hover:underline">Ver histórico</Link>
                                         <button onClick={(e) => { e.stopPropagation(); setSelectedAppointment(slotDetails); setFinalizeModalOpen(true); }} className="text-xs text-green-600 hover:underline" disabled={!isPast(slotDate) && !isToday(slotDate)}>Finalizar</button>
                                         <button onClick={(e) => handleCancelarAgendamento(e, slotDetails.appointmentId!)} className="text-xs text-red-600 hover:underline">Cancelar</button>
                                     </div>
@@ -318,17 +326,17 @@ export default function ClinicoDashboard() {
             </section>
             
             <section className="bg-white p-4 md:p-6 rounded-2xl shadow h-fit xl:col-span-1">
-              <h2 className="text-xl md:text-2xl font-semibold mb-4 text-gray-700">Próximos Pacientes (Hoje)</h2>
+              <h2 className="text-xl md:text-2xl font-semibold mb-4 text-gray-700">Próximos clientes (hoje)</h2>
               {(() => {
-                const todayAppointments = schedule ? Object.entries(schedule).filter(([isoDate, details]) => details.status === 'booked' && isSameDay(new Date(isoDate), new Date())).map(([isoDate, details]) => ({ id: details.appointmentId!, date: isoDate, patientName: details.patient!.name })).sort((a, b) => compareAsc(new Date(a.date), new Date(b.date))) : [];
+                const todayAppointments = schedule ? Object.entries(schedule).filter(([isoDate, details]) => details.status === 'booked' && isSameDay(new Date(isoDate), new Date())).map(([isoDate, details]) => ({ id: details.appointmentId!, date: isoDate, customerName: details.customer!.name })).sort((a, b) => compareAsc(new Date(a.date), new Date(b.date))) : [];
                 return (
                   <ul className="space-y-3">
                     {todayAppointments.length > 0 ? todayAppointments.map((a) => (
                       <li key={a.id} className="flex items-center gap-3">
                         <span className="font-bold text-blue-600 text-sm w-14">{format(new Date(a.date), 'HH:mm')}</span>
-                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-xl text-sm font-medium">{a.patientName}</div>
+                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-xl text-sm font-medium">{a.customerName}</div>
                       </li>
-                    )) : <li className="text-sm text-gray-500">Nenhum paciente agendado para hoje.</li>}
+                    )) : <li className="text-sm text-gray-500">Nenhum cliente agendado para hoje.</li>}
                   </ul>
                 );
               })()}
@@ -343,7 +351,7 @@ export default function ClinicoDashboard() {
             <h2 className="text-black text-xl font-semibold mb-4">Selecionado: {format(selectedDate, 'dd/MM/yyyy HH:mm')}</h2>
             <div className="space-y-4">
               <div className="relative">
-                <input type="text" placeholder="Buscar paciente..." value={patientQuery} onChange={(e) => { setPatientQuery(e.target.value); setSelectedPatient(null); }} className="text-black border p-2 rounded w-full" onFocus={() => { if (patientResults.length > 0) setShowPatientDropdown(true); }} onBlur={() => { setTimeout(() => setShowPatientDropdown(false), 150); }}/>
+                <input type="text" placeholder="Buscar cliente..." value={patientQuery} onChange={(e) => { setPatientQuery(e.target.value); setSelectedPatient(null); }} className="text-black border p-2 rounded w-full" onFocus={() => { if (patientResults.length > 0) setShowPatientDropdown(true); }} onBlur={() => { setTimeout(() => setShowPatientDropdown(false), 150); }}/>
                 {showPatientDropdown && patientResults.length > 0 && (
                   <ul className="absolute z-10 bg-white text-black border rounded w-full mt-1 max-h-40 overflow-y-auto shadow">
                     {patientResults.map((patient) => (
@@ -352,7 +360,11 @@ export default function ClinicoDashboard() {
                   </ul>
                 )}
               </div>
-              <button onClick={handleAgendar} disabled={!selectedPatient} className={`w-full py-2 rounded text-white transition-colors ${selectedPatient ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'}`}>Agendar para {selectedPatient?.name || '...'}</button>
+              <select value={selectedServiceId} onChange={event => setSelectedServiceId(event.target.value)} className="w-full rounded border p-2 text-black">
+                <option value="">Selecione o serviço</option>
+                {services?.map(item => <option key={item.id} value={item.id}>{item.name} · {item.durationMinutes} min</option>)}
+              </select>
+              <button onClick={handleAgendar} disabled={!selectedPatient || !selectedServiceId} className={`w-full py-2 rounded text-white transition-colors ${selectedPatient && selectedServiceId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-300 cursor-not-allowed'}`}>Agendar para {selectedPatient?.name || '...'}</button>
               <button onClick={() => handleSetSlotStatus('blocked')} className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700">Bloquear horário</button>
               <button onClick={() => handleSetSlotStatus('available')} className="w-full bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600">Disponibilizar horário</button>
               <button onClick={() => setModalOpen(false)} className="w-full text-gray-500 hover:text-gray-700 text-sm pt-2">Cancelar</button>
@@ -365,14 +377,14 @@ export default function ClinicoDashboard() {
           <div className="fixed inset-0 bg-black bg-opacity-20 flex justify-center items-center z-50 p-4">
               <form onSubmit={handleFinalizarAtendimento} className="bg-white rounded-2xl shadow-lg p-6 w-full max-w-lg">
                   <h2 className="text-black text-xl font-semibold mb-2">Finalizar Atendimento</h2>
-                  <p className="text-gray-600 mb-4">Paciente: {selectedAppointment.patient?.name}</p>
+                  <p className="text-gray-600 mb-4">Cliente: {selectedAppointment.customer?.name}</p>
                   <div className="space-y-4">
                       <div>
-                          <label htmlFor="service" className="block text-sm font-medium text-gray-700">Serviço Realizado</label>
-                          <input type="text" id="service" value={service} onChange={(e) => setService(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-black" placeholder="Ex: Massagem Relaxante"/>
+                          <label htmlFor="service" className="block text-sm font-medium text-gray-700">Serviço realizado</label>
+                          <input type="text" id="service" value={service} onChange={(e) => setService(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-black" placeholder="Ex.: Corte feminino"/>
                       </div>
                       <div>
-                          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Anotações da Sessão</label>
+                          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Observações do atendimento</label>
                           <textarea id="notes" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-black" placeholder="Descreva observações..."/>
                       </div>
                       <div className="flex justify-end gap-3 pt-4">

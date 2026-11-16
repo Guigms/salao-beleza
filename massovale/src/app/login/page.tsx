@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { Suspense } from 'react';
 import LoginForm from './login-form'; // Importa o novo componente cliente
 
@@ -12,14 +11,11 @@ export default function SignInPage() {
         </Suspense>
       </div>
 
-      {/* Coluna da direita com a imagem, que pode ser renderizada no servidor */}
-      <div className="relative hidden flex-1 lg:block">
-        <Image
-          src="/logomasso.png"
-          alt="Logo da Jessica Vale Massoterapia"
-          fill
-          style={{ objectFit: 'cover' }}
-        />
+      <div className="hidden flex-1 items-center justify-center bg-[#bcbcbc] lg:flex">
+        <div className="text-center text-stone-900">
+          <p className="text-4xl font-bold">Salão Beleza</p>
+          <p className="mt-3 text-lg">Seu próximo atendimento começa aqui.</p>
+        </div>
       </div>
     </main>
   );

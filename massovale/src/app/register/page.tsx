@@ -1,6 +1,5 @@
 "use client";
 
-import Image from 'next/image';
 import { useState, FormEvent } from 'react';
 
 export default function SignInPage() {
@@ -121,13 +120,11 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <div className="relative hidden flex-1 lg:block">
-        <Image
-          src="/logomasso.png"
-          alt="Workspace com um laptop e teclado"
-          fill
-          style={{ objectFit: 'cover' }}
-        />
+      <div className="hidden flex-1 items-center justify-center bg-[#bcbcbc] lg:flex">
+        <div className="text-center text-stone-900">
+          <p className="text-4xl font-bold">Salão Beleza</p>
+          <p className="mt-3 text-lg">Crie sua conta e agende seu próximo atendimento.</p>
+        </div>
       </div>
     </main>
   );
